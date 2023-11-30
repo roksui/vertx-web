@@ -15,7 +15,7 @@
  */
 
 import {WebSocket} from "ws"
-import {createClient} from "graphql-ws"
+import {createClient, MessageType, stringifyMessage} from "graphql-ws"
 
 let client
 
@@ -139,4 +139,51 @@ test('ws link subscription with failed promise', async () => {
   }
   expect(err).toBeDefined()
   expect(err.code).toEqual(4401)
+})
+
+test('invalid complete message', async () => {
+  let activeSocket;
+
+  client = createClient({
+    url: 'ws://localhost:8080/graphqlWithInitHandler',
+    webSocketImpl: WebSocket,
+    on: {
+      opened: (socket) => {
+        activeSocket = socket
+      }
+    }
+  })
+
+  const result = await new Promise((resolve, reject) => {
+    let result = []
+
+    client.subscribe(
+        {
+          query: 'subscription { greetingsWithoutComplete }',
+        },
+        {
+          next(val) {
+            result.push(val)
+          },
+          error: reject,
+          complete() {
+            resolve(result)
+          },
+        },
+    )
+
+    // Send an invalid complete message after 1 second
+    // This results in a NPE on the websocket server.
+    setTimeout(() => {
+      if (activeSocket.readyState === WebSocket.OPEN) {
+        // Note that I didn't use `stringifyMessage` API of graphql-ws
+        // as it validates the format of the message.
+        activeSocket.send(
+            JSON.stringify({
+              type: MessageType.Complete
+            })
+        )
+      }
+    }, 1000)
+  })
 })

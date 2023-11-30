@@ -94,7 +94,8 @@ public class GraphQLWSTestsServer extends AbstractVerticle {
       .type("Query", builder -> builder.dataFetcher("hello", this::hello))
       .type("Subscription", builder -> builder
         .dataFetcher("greetings", this::greetings)
-        .dataFetcher("greetAndFail", this::greetAndFail))
+        .dataFetcher("greetAndFail", this::greetAndFail)
+        .dataFetcher("greetingsWithoutComplete", this::greetingsWithoutComplete))
       .build();
 
     SchemaGenerator schemaGenerator = new SchemaGenerator();
@@ -119,6 +120,13 @@ public class GraphQLWSTestsServer extends AbstractVerticle {
     return subscriber -> {
       Stream.of("Hi").forEach(subscriber::onNext);
       subscriber.onError(new Exception("boom"));
+    };
+  }
+
+  private Publisher<String> greetingsWithoutComplete(DataFetchingEnvironment env) {
+    return subscriber -> {
+      Stream.of("Hi", "Bonjour", "Hola", "Ciao", "Zdravo").forEach(subscriber::onNext);
+//      subscriber.onComplete();
     };
   }
 }
